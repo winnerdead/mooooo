@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ดูเอกสาร A/B เทียบกัน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.2/dist/docx-preview.min.js"></script>
+<style>
+:root{
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f5f6f9;--surface:#fff;--text:#1c2433;--muted:#6b7589;--border:#e3e6ee;--accent:#3a5bd9;--accent-soft:#e8edfd;
+  --b-bg:#e3f6ec;--b-fg:#12724a;--well:#e9ecf3;
+  --font:'IBM Plex Sans Thai','Noto Sans Thai','Sarabun',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151c;--surface:#1a1f29;--text:#e6e9f0;--muted:#8d97ab;--border:#2a3140;--accent:#7c93f5;--accent-soft:#232b47;--b-bg:#12301f;--b-fg:#6fdba3;--well:#0e1117;}}
+:root[data-theme="dark"]{
+  --bg:#12151c;--surface:#1a1f29;--text:#e6e9f0;--muted:#8d97ab;--border:#2a3140;--accent:#7c93f5;--accent-soft:#232b47;--b-bg:#12301f;--b-fg:#6fdba3;--well:#0e1117;}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:400 15px/1.6 var(--font)}
+.wrap{max-width:1500px;margin:0 auto;padding:24px 20px 40px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px}
+.top h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.top .st{margin-right:auto}
+.btn{font:500 14px var(--font);border:1px solid var(--border);background:var(--surface);color:var(--text);padding:7px 13px;border-radius:10px;cursor:pointer}
+.btn:hover{background:var(--accent-soft)}
+.btn.sm{padding:3px 9px;font-size:13px;border-radius:8px}
+.btn:focus-visible,.seg button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:3px}
+.seg button{font:500 13.5px var(--font);border:0;background:none;color:var(--muted);padding:5px 14px;border-radius:8px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent)}
+label.chk{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:14px;cursor:pointer}
+label.chk input{accent-color:var(--accent)}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pane{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;height:calc(100vh - 190px);min-height:480px;min-width:0;transition:border-color .15s,box-shadow .15s}
+.pane.drag{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.ph{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.badge{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-weight:600;font-size:13px;background:var(--accent-soft);color:var(--accent)}
+.pane[data-side=b] .badge{background:var(--b-bg);color:var(--b-fg)}
+.nm{flex:1;min-width:0}
+.nm b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.nm small{color:var(--muted);font-size:12.5px}
+.zoom{display:flex;align-items:center;gap:4px;visibility:hidden}
+.pane.has .zoom{visibility:visible}
+.zoom span{min-width:44px;text-align:center;font-size:13px;color:var(--muted)}
+.body{flex:1;overflow:auto;background:var(--well);position:relative}
+.doc{padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+.doc>*{margin-inline:auto}
+.pw{flex:none;display:flex;align-items:center;justify-content:center;background:#fff;color:#8a93a6;font-size:13px;box-shadow:0 1px 3px rgba(20,30,50,.18),0 8px 24px rgba(20,30,50,.08)}
+.pw canvas{display:block;box-shadow:none!important}
+.doc canvas{background:#fff;box-shadow:0 1px 3px rgba(20,30,50,.18),0 8px 24px rgba(20,30,50,.08);max-width:none}
+.doc img.pic{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(20,30,50,.18)}
+.doc .txt{background:#fff;color:#1c2433;width:100%;max-width:820px;padding:28px 32px;border-radius:4px;box-shadow:0 1px 3px rgba(20,30,50,.18);white-space:pre-wrap;word-break:break-word;font:400 14px/1.75 var(--font)}
+.doc .docx-wrapper{background:transparent!important;padding:0!important}
+.doc .docx-wrapper>section.docx{box-shadow:0 1px 3px rgba(20,30,50,.18),0 8px 24px rgba(20,30,50,.08)!important;margin-bottom:14px!important}
+.empty{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:6px;text-align:center;padding:24px;color:var(--muted)}
+.pane.has .empty{display:none}
+.empty .ic{width:52px;height:52px;border-radius:14px;background:var(--surface);border:1px dashed var(--border);display:grid;place-items:center;color:var(--accent);font-size:22px;margin-bottom:6px}
+.empty strong{color:var(--text);font-size:16px;font-weight:500}
+.empty .btn{margin-top:10px}
+.msg{padding:40px 20px;text-align:center;color:var(--muted);max-width:420px}
+[data-layout=tabs] .panes{grid-template-columns:1fr}
+[data-layout=tabs][data-active=a] .pane[data-side=b],[data-layout=tabs][data-active=b] .pane[data-side=a]{display:none}
+.tabsel{display:none}[data-layout=tabs] .tabsel{display:inline-flex}[data-layout=tabs] .synclbl{display:none}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.primary:hover{filter:brightness(1.08);background:var(--accent)}
+[hidden]{display:none!important}
+.st{font-size:13px;color:var(--muted)}
+.sets{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.sets .list{display:flex;gap:6px;overflow-x:auto;padding:2px;flex:1;scrollbar-width:thin}
+.setname{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:0 0 12px}
+.setname b{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.setname span{color:var(--muted);font-size:14px}
+.sets small{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.set{flex:none;font:500 13.5px var(--font);border:1px solid var(--border);background:var(--surface);color:var(--muted);padding:6px 14px;border-radius:99px;cursor:pointer}
+.set:hover{background:var(--accent-soft)}
+.set[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.set:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.set .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--b-fg);margin-left:7px;vertical-align:middle}
+.set[aria-pressed=true] .dot{background:#fff}
+[data-role=viewer] [data-del],.pane:not(.has) [data-del]{display:none}
+@media(max-width:860px){.sets small{display:none}}
+[data-role=viewer] [data-pick],[data-role=viewer] #swap,[data-role=viewer] #clear{display:none}
+.xta{display:block;width:100%;min-height:220px;resize:vertical;margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:400 14.5px/1.7 var(--font)}
+.xta:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.explain{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 22px}
+.eh{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.eh h2{margin:0;font-size:17px;font-weight:600;margin-right:auto}
+.xhint{color:var(--muted);margin:10px 0 0;font-size:14px}
+.xout{margin-top:6px;max-width:920px}
+.xout h3{font-size:15px;font-weight:600;margin:18px 0 4px;color:var(--accent)}
+.xout p{margin:4px 0}.xout ul{margin:4px 0;padding-left:22px}.xout li{margin:4px 0}
+.xout.busy::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-left:6px;animation:pl 1s infinite}
+@keyframes pl{50%{opacity:.2}}
+@media(max-width:860px){.panes{grid-template-columns:1fr}.pane{height:75vh}.wrap{padding:16px 12px 32px}.synclbl{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" data-layout="split" data-active="a" data-role="viewer">
+  <div class="top">
+    <h1>ดูเอกสารสองไฟล์เทียบกัน</h1>
+    <span class="st" id="st" role="status"></span>
+    <label class="chk synclbl"><input type="checkbox" id="sync" checked>เลื่อนพร้อมกัน</label>
+    <div class="seg tabsel" role="group" aria-label="เลือกไฟล์ที่แสดง">
+      <button id="t-a" aria-pressed="true">ไฟล์ A</button><button id="t-b" aria-pressed="false">ไฟล์ B</button>
+    </div>
+    <div class="seg" role="group" aria-label="รูปแบบการแสดงผล">
+      <button id="l-split" aria-pressed="true">เทียบคู่ขนาน</button><button id="l-tabs" aria-pressed="false">ดูทีละไฟล์</button>
+    </div>
+  </div>
+
+
+  <div class="panes">
+    <section class="pane" data-side="a">
+      <div class="ph"><span class="badge">A</span><div class="nm"><b id="nm-a">ยังไม่ได้เลือกไฟล์</b><small id="sm-a"></small></div>
+        <button class="btn sm" data-del="a" aria-label="ลบเอกสาร A">ลบ</button>
+        <div class="zoom"><button class="btn sm" data-z="a" data-d="-1" aria-label="ย่อ">−</button><span id="zl-a">100%</span><button class="btn sm" data-z="a" data-d="1" aria-label="ขยาย">+</button></div></div>
+      <div class="body" id="body-a"><div class="doc" id="doc-a"></div>
+        <div class="empty"><div class="ic">＋</div><strong>วางเอกสารฝั่ง A</strong><span>ลากไฟล์มาวางที่นี่ รองรับ PDF, Word (.docx), รูปภาพ และไฟล์ข้อความ · ไฟล์ละไม่เกิน 100 MB</span><button class="btn" data-pick="a">เลือกไฟล์</button></div></div>
+    </section>
+    <section class="pane" data-side="b">
+      <div class="ph"><span class="badge">B</span><div class="nm"><b id="nm-b">ยังไม่ได้เลือกไฟล์</b><small id="sm-b"></small></div>
+        <button class="btn sm" data-del="b" aria-label="ลบเอกสาร B">ลบ</button>
+        <div class="zoom"><button class="btn sm" data-z="b" data-d="-1" aria-label="ย่อ">−</button><span id="zl-b">100%</span><button class="btn sm" data-z="b" data-d="1" aria-label="ขยาย">+</button></div></div>
+      <div class="body" id="body-b"><div class="doc" id="doc-b"></div>
+        <div class="empty"><div class="ic">＋</div><strong>วางเอกสารฝั่ง B</strong><span>ลากไฟล์มาวางที่นี่ รองรับ PDF, Word (.docx), รูปภาพ และไฟล์ข้อความ · ไฟล์ละไม่เกิน 100 MB</span><button class="btn" data-pick="b">เลือกไฟล์</button></div></div>
+    </section>
+  </div>
+  <section class="explain">
+    <div class="eh"><h2 id="xh">สรุปความแตกต่างของสองไฟล์</h2><button class="btn primary" id="xbtn" hidden>เพิ่มคำอธิบาย</button></div>
+    <div class="xout" id="xview"></div>
+    <div id="xedit" hidden>
+      <textarea id="xta" class="xta" spellcheck="false" aria-label="คำอธิบายความแตกต่าง" placeholder="พิมพ์คำอธิบายว่าสองไฟล์ต่างกันอย่างไร"></textarea>
+      <p class="xhint">ใช้ ## ทำหัวข้อ, - ทำรายการ, **ข้อความ** ทำตัวหนา</p>
+      <div class="eh"><button class="btn primary" id="xsave">บันทึก</button><button class="btn" id="xcancel">ยกเลิก</button><span class="xhint" id="xmsg"></span></div>
+    </div>
+  </section>
+  <input type="file" id="picker" hidden accept=".pdf,.docx,.txt,.md,.csv,.json,.html,.xml,image/*">
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const STEPS=[.5,.6,.75,.9,1,1.15,1.3,1.5,2,2.5,3];
+const S={a:{z:1,tok:0},b:{z:1,tok:0}};
+let pickSide='a';
+try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'}catch(e){}
+
+const sizeTxt=n=>n<1048576?(n/1024).toFixed(0)+' KB':(n/1048576).toFixed(1)+' MB';
+function kindOf(f){
+  const n=f.name.toLowerCase();
+  if(n.endsWith('.pdf')||f.type==='application/pdf')return 'pdf';
+  if(n.endsWith('.docx'))return 'docx';
+  if(f.type.startsWith('image/'))return 'img';
+  if(/\.(txt|md|csv|json|html?|xml|log)$/.test(n)||f.type.startsWith('text/'))return 'text';
+  return 'other';
+}
+const label={pdf:'PDF',docx:'Word',img:'รูปภาพ',text:'ข้อความ',other:''};
+
+const CUR=1,MAXB=100*1048576,CHUNK=12*1048576,DIRECT=18*1048576;
+const dk=side=>side,nKey=()=>'explain';
+const ALLDOCS={},ALLNOTES={};
+let DB=null,ASSETS=null,STORE=false;
+const LDB={
+  open(){return new Promise((res,rej)=>{try{const r=indexedDB.open('docviewer',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})},
+  async run(mode,fn){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('f',mode),q=fn(t.objectStore('f'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)})},
+  put(k,v){return this.run('readwrite',st=>st.put(v,k))},
+  get(k){return this.run('readonly',st=>st.get(k))},
+  del(k){return this.run('readwrite',st=>st.delete(k))}
+};
+function localSave(k,meta,data){return LDB.put(k,{name:meta.name,size:meta.size,kind:meta.kind,buf:data.buf,text:data.text,url:data.url}).then(()=>true,()=>false)}
+async function restoreLocal(side){
+  if(!isAdmin||S[side].file)return;
+  const k=dk(side);let v=null;
+  try{v=await LDB.get(k)}catch(e){}
+  if(!v||dk(side)!==k||S[side].file||ALLDOCS[k])return;
+  setDoc(side,{name:v.name,size:v.size,kind:v.kind},{buf:v.buf,text:v.text,url:v.url},null);
+  stat('แสดงไฟล์ที่บันทึกไว้ในเครื่องนี้ (ยังไม่ได้บันทึกให้ทุกคน)');
+}
+const stat=t=>{$('#st').textContent=t||''};
+function bufToB64(buf){const u=new Uint8Array(buf);let t='';for(let i=0;i<u.length;i+=0x8000)t+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(t)}
+function b64ToBuf(b){const t=atob(b.trim()),u=new Uint8Array(t.length);for(let i=0;i<t.length;i++)u[i]=t.charCodeAt(i);return u.buffer}
+function paint(side){
+  const s=S[side];$('.pane[data-side='+side+']').classList.add('has');
+  $('#nm-'+side).textContent=s.file.name;
+  $('#sm-'+side).textContent=(label[s.kind]?label[s.kind]+' · ':'')+sizeTxt(s.file.size);
+  render(side);
+}
+function setDoc(side,meta,data,assetId){
+  Object.assign(S[side],{file:meta,kind:meta.kind,z:1,pdf:null,fitted:false,buf:data.buf||null,text:data.text,url:data.url,assetId:assetId||null});
+  paint(side);
+}
+async function loadFile(file,side){
+  if(!isAdmin)return;
+  if(file.size>MAXB){stat('ไฟล์ใหญ่เกิน 100 MB ('+sizeTxt(file.size)+') กรุณาเลือกไฟล์ที่เล็กกว่านี้');return}
+  const kind=kindOf(file),data={};
+  if(kind==='img'){data.url=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(file)})}
+  else if(kind==='text'){data.text=await file.text()}
+  else if(kind!=='other'){data.buf=await file.arrayBuffer()}
+  setDoc(side,{name:file.name,size:file.size,kind},data,null);
+  if(kind==='other')return;
+  const k=dk(side),saved=await localSave(k,{name:file.name,size:file.size,kind},data);
+  if(STORE)persist(side,file,kind,data);
+  else stat(saved?'บันทึกไว้ในเครื่องนี้แล้ว (หน้านี้ยังบันทึกให้ทุกคนเห็นไม่ได้)':'บันทึกไม่ได้ ไฟล์จะหายเมื่อปิดหน้านี้');
+}
+const b64Part=blob=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(blob)});
+const idsOf=d=>d?(d.chunks&&d.chunks.length?d.chunks:[d.assetId]):[];
+async function persist(side,file,kind,data){
+  const mine=S[side].file,sObj=S[side],k=dk(side),old=ALLDOCS[k],nm='ไฟล์ '+side.toUpperCase(),made=[];
+  sObj.pending=true;
+  try{
+    const d={name:file.name,size:file.size,kind,mime:file.type||'',updatedAt:Date.now()};
+    const direct=kind==='pdf'||kind==='text'||(kind==='img'&&/^image\/(png|jpeg|gif|webp|svg\+xml)$/.test(file.type));
+    if(!direct||file.size>DIRECT){
+      const n=Math.ceil(file.size/CHUNK);d.chunks=[];
+      for(let i=0;i<n;i++){
+        stat('กำลังบันทึก '+nm+' ('+(i+1)+'/'+n+')...');
+        const part=new Blob([await b64Part(file.slice(i*CHUNK,(i+1)*CHUNK))],{type:'text/plain'});
+        const up=await ASSETS.upload(part,{type:'text/plain'});made.push(up.id);d.chunks.push(up.id);
+      }
+      d.assetId=d.chunks[0];
+    }else{
+      stat('กำลังบันทึก '+nm+'...');
+      const type=kind==='pdf'?'application/pdf':kind==='img'?file.type:'text/plain';
+      const up=await ASSETS.upload(kind==='text'?new Blob([data.text||' '],{type}):file,{type});made.push(up.id);d.assetId=up.id;
+    }
+    if(S[side].file===mine)S[side].assetId=d.assetId;
+    ALLDOCS[k]=d;await DB.doc('docs/'+k).set(d);
+    idsOf(old).forEach(id=>ASSETS.delete(id).catch(()=>{}));
+    LDB.del(k).catch(()=>{});stat('บันทึกแล้ว เอกสารจะแสดงให้ทุกคนที่เปิดหน้านี้');
+  }catch(e){
+    made.forEach(id=>ASSETS.delete(id).catch(()=>{}));if(ALLDOCS[k]&&ALLDOCS[k].assetId===made[0])ALLDOCS[k]=old;
+    const c=e&&e.code;
+    stat(c==='too_large'?'ไฟล์ใหญ่เกินไป บันทึกให้ทุกคนไม่ได้':c==='quota_or_state'?'พื้นที่เก็บไฟล์ของหน้านี้เต็ม บันทึกให้ทุกคนไม่ได้ แต่เก็บไว้ในเครื่องนี้แล้ว':'บันทึกให้ทุกคนไม่สำเร็จ แต่เก็บไว้ในเครื่องนี้แล้ว');
+  }finally{sObj.pending=false}
+}
+async function loadStored(side,d){
+  try{
+    const data={};
+    if(d.chunks&&d.chunks.length){
+      const parts=[];
+      for(let i=0;i<d.chunks.length;i++){
+        stat('กำลังโหลดไฟล์ '+side.toUpperCase()+' ('+(i+1)+'/'+d.chunks.length+')...');
+        const r=await fetch('/_blob/'+d.chunks[i]);if(!r.ok)throw 0;
+        const bin=atob((await r.text()).trim()),u=new Uint8Array(bin.length);
+        for(let j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);
+        parts.push(u);
+      }
+      stat('');
+      const blob=new Blob(parts,{type:d.mime||''});
+      if(d.kind==='img')data.url=URL.createObjectURL(blob);
+      else if(d.kind==='text')data.text=await blob.text();
+      else data.buf=await blob.arrayBuffer();
+    }else{
+      const url='/_blob/'+d.assetId;
+      if(d.kind==='img')data.url=url;
+      else{const r=await fetch(url);if(!r.ok)throw 0;if(d.kind==='text')data.text=await r.text();else data.buf=await r.arrayBuffer()}
+    }
+    if(!ALLDOCS[dk(side)]||ALLDOCS[dk(side)].assetId!==d.assetId)return;
+    setDoc(side,{name:d.name,size:d.size,kind:d.kind},data,d.assetId);
+  }catch(e){
+    stat('');
+    $('.pane[data-side='+side+']').classList.add('has');$('#nm-'+side).textContent=d.name||'เอกสาร';
+    note(side,'<strong>โหลดเอกสารที่บันทึกไว้ไม่สำเร็จ</strong><br>ลองรีเฟรชหน้านี้อีกครั้ง');
+  }
+}
+function syncSide(side){
+  const d=ALLDOCS[dk(side)]||null,cur=S[side].assetId||null;
+  if(S[side].pending)return;
+  if(!d){if(cur)reset(side);else restoreLocal(side);return}
+  if(d.assetId!==cur)loadStored(side,d);
+}
+function drawTabs(){}
+document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+  const side=b.dataset.del;
+  if(!b.dataset.arm){
+    const t=setTimeout(()=>{delete b.dataset.arm;b.textContent='ลบ'},3500);b.dataset.arm=t;
+    b.textContent='ยืนยันลบ';return;
+  }
+  clearTimeout(+b.dataset.arm);delete b.dataset.arm;b.textContent='ลบ';
+  const k=dk(side),d=ALLDOCS[k];reset(side);LDB.del(k).catch(()=>{});
+  if(STORE&&d){try{await DB.doc('docs/'+k).delete();delete ALLDOCS[k];idsOf(d).forEach(id=>ASSETS.delete(id).catch(()=>{}));stat('ลบเอกสารแล้ว')}catch(e){stat('ลบไม่สำเร็จ')}}
+  drawTabs();
+});
+function note(side,html){$('#doc-'+side).innerHTML='<div class="msg">'+html+'</div>'}
+function zl(side){$('#zl-'+side).textContent=Math.round(S[side].z*100)+'%'}
+
+async function renderPdf(side,tok){
+  const s=S[side],doc=$('#doc-'+side),body=$('#body-'+side);
+  if(!s.pdf)s.pdf=await pdfjsLib.getDocument({data:s.buf.slice(0)}).promise;
+  if(tok!==s.tok)return;
+  const pdf=s.pdf,n=pdf.numPages;
+  $('#sm-'+side).textContent='PDF · '+n+' หน้า · '+sizeTxt(s.file.size);
+  const w=Math.max(200,body.clientWidth-32)*s.z;
+  const v1=(await pdf.getPage(1)).getViewport({scale:1});
+  if(tok!==s.tok)return;
+  const ph=n=>'<span>หน้า '+n+'</span>',wraps=[];
+  for(let p=1;p<=n;p++){
+    const d=document.createElement('div');d.className='pw';d.dataset.p=p;
+    d.style.width=w+'px';d.style.height=(w*v1.height/v1.width)+'px';d.innerHTML=ph(p);doc.appendChild(d);wraps.push(d);
+  }
+  let chain=Promise.resolve();
+  const draw=wrap=>{
+    if(wrap._st)return;wrap._st=1;
+    chain=chain.then(async()=>{
+      if(tok!==s.tok||wrap._st!==1)return;
+      try{
+        const pg=await pdf.getPage(+wrap.dataset.p),base=pg.getViewport({scale:1}),sc=w/base.width;
+        let dpr=Math.min(window.devicePixelRatio||1,1.5);
+        const px=(base.width*sc*dpr)*(base.height*sc*dpr);if(px>6e6)dpr*=Math.sqrt(6e6/px);
+        const vp=pg.getViewport({scale:sc*dpr}),c=document.createElement('canvas');
+        c.width=Math.floor(vp.width);c.height=Math.floor(vp.height);
+        c.style.width=w+'px';c.style.height=(vp.height/dpr)+'px';
+        await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+        pg.cleanup();
+        if(tok!==s.tok||wrap._st!==1)return;
+        wrap.style.height='auto';wrap.replaceChildren(c);wrap._st=2;
+      }catch(e){
+        if(tok===s.tok&&wrap._st===1){wrap._st=0;wrap.innerHTML='<span>แสดงหน้า '+wrap.dataset.p+' ไม่สำเร็จ (ภาพสแกนอาจใหญ่เกินไป)</span>'}
+      }
+    });
+  };
+  const free=wrap=>{
+    if(wrap._st===2){wrap.style.height=wrap.getBoundingClientRect().height+'px';wrap.innerHTML=ph(wrap.dataset.p)}
+    wrap._st=0;
+  };
+  const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting?draw(e.target):free(e.target)),{root:body,rootMargin:'700px 0px'});
+  wraps.forEach(x=>io.observe(x));
+  s.io=io;
+}
+async function render(side){
+  const s=S[side],doc=$('#doc-'+side),body=$('#body-'+side),tok=++s.tok;
+  if(s.io){s.io.disconnect();s.io=null}
+  doc.innerHTML='';zl(side);
+  try{
+    if(s.kind==='pdf'){
+      await renderPdf(side,tok);
+    }else if(s.kind==='docx'){
+      const box=document.createElement('div');doc.appendChild(box);
+      await docx.renderAsync(s.buf.slice(0),box,null,{className:'docx',inWrapper:true,ignoreLastRenderedPageBreak:true});
+      if(tok!==s.tok)return;
+      const sec=box.querySelector('section.docx');
+      if(sec&&!s.fitted){s.z=Math.max(.5,Math.min(1,(body.clientWidth-32)/sec.offsetWidth));s.fitted=true;zl(side)}
+      box.style.zoom=s.z;
+    }else if(s.kind==='img'){
+      const im=new Image();im.className='pic';im.alt=s.file.name;im.src=s.url;im.style.width=(100*s.z)+'%';im.style.maxWidth='none';doc.appendChild(im);
+    }else if(s.kind==='text'){
+      const d=document.createElement('div');d.className='txt';d.textContent=s.text;d.style.zoom=s.z;doc.appendChild(d);
+    }else{
+      note(side,'<strong>เปิดไฟล์ชนิดนี้ไม่ได้</strong><br>รองรับ PDF, Word (.docx), รูปภาพ และไฟล์ข้อความ ถ้าเป็นไฟล์ .doc ให้บันทึกเป็น .docx หรือ PDF ก่อน');
+    }
+  }catch(err){
+    note(side,'<strong>แสดงเอกสารไม่สำเร็จ</strong><br>ไฟล์อาจเสียหายหรือมีรหัสผ่าน ลองเลือกไฟล์ใหม่อีกครั้ง');
+  }
+}
+
+/* zoom */
+let zt={};
+document.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
+  const side=b.dataset.z,s=S[side];let i=STEPS.findIndex(v=>v>=s.z-.001);if(i<0)i=STEPS.length-1;
+  i=Math.max(0,Math.min(STEPS.length-1,i+Number(b.dataset.d)));s.z=STEPS[i];zl(side);
+  if(s.kind==='pdf'){clearTimeout(zt[side]);zt[side]=setTimeout(()=>render(side),180)}
+  else{const el=$('#doc-'+side).firstElementChild;
+    if(s.kind==='img'&&el)el.style.width=(100*s.z)+'%';else if(el)el.style.zoom=s.z}
+});
+
+/* pick / drop */
+document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{pickSide=b.dataset.pick;$('#picker').value='';$('#picker').click()});
+$('#picker').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0],pickSide)};
+document.querySelectorAll('.pane').forEach(p=>{
+  const side=p.dataset.side;
+  ['dragenter','dragover'].forEach(ev=>p.addEventListener(ev,e=>{e.preventDefault();if(isAdmin)p.classList.add('drag')}));
+  ['dragleave','drop'].forEach(ev=>p.addEventListener(ev,e=>{e.preventDefault();p.classList.remove('drag')}));
+  p.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f&&isAdmin)loadFile(f,side)});
+});
+
+/* synced scrolling */
+let lock=false;
+['a','b'].forEach(side=>{
+  const from=$('#body-'+side),to=$('#body-'+(side==='a'?'b':'a'));
+  from.addEventListener('scroll',()=>{
+    if(lock||!$('#sync').checked||$('#app').dataset.layout==='tabs')return;
+    const fm=from.scrollHeight-from.clientHeight,tm=to.scrollHeight-to.clientHeight;
+    if(fm<=0||tm<=0)return;
+    lock=true;to.scrollTop=from.scrollTop/fm*tm;
+    requestAnimationFrame(()=>lock=false);
+  },{passive:true});
+});
+
+/* layout / actions */
+function setLayout(l){
+  const app=$('#app');app.dataset.layout=l;
+  $('#l-split').setAttribute('aria-pressed',l==='split');$('#l-tabs').setAttribute('aria-pressed',l==='tabs');
+  ['a','b'].forEach(x=>S[x].file&&S[x].kind==='pdf'&&render(x));
+}
+function setActive(x){$('#app').dataset.active=x;$('#t-a').setAttribute('aria-pressed',x==='a');$('#t-b').setAttribute('aria-pressed',x==='b');
+  if(S[x].file&&S[x].kind==='pdf')render(x)}
+$('#l-split').onclick=()=>setLayout('split');$('#l-tabs').onclick=()=>setLayout('tabs');
+$('#t-a').onclick=()=>setActive('a');$('#t-b').onclick=()=>setActive('b');
+function reset(side){
+  if(S[side].io)S[side].io.disconnect();
+  S[side]={z:1,tok:S[side].tok+1};$('#doc-'+side).innerHTML='';
+  $('#nm-'+side).textContent='ยังไม่ได้เลือกไฟล์';$('#sm-'+side).textContent='';
+  $('.pane[data-side='+side+']').classList.remove('has');
+}
+
+/* ---- คำอธิบายความแตกต่าง (ผู้ดูแลเป็นผู้กรอก) ---- */
+let NOTE='',isAdmin=false,editing=false;
+const esc=t=>t.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function md(t){
+  let h='',ul=false;const inl=x=>x.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  for(const l of esc(t).split('\n')){
+    if(/^\s*[-•*]\s+/.test(l)){if(!ul){h+='<ul>';ul=true}h+='<li>'+inl(l.replace(/^\s*[-•*]\s+/,''))+'</li>';continue}
+    if(ul){h+='</ul>';ul=false}
+    if(/^#{1,3}\s/.test(l))h+='<h3>'+inl(l.replace(/^#{1,3}\s+/,''))+'</h3>';
+    else if(l.trim())h+='<p>'+inl(l)+'</p>';
+  }
+  return h+(ul?'</ul>':'');
+}
+function drawNote(){
+  if(!editing)NOTE=ALLNOTES[nKey(CUR)]||'';
+  $('#xh').textContent='สรุปความแตกต่างของสองไฟล์';
+  $('#xbtn').hidden=!(isAdmin&&DB)||editing;
+  $('#xbtn').textContent=NOTE?'แก้ไขคำอธิบาย':'เพิ่มคำอธิบาย';
+  $('#xedit').hidden=!editing;$('#xview').hidden=editing;
+  $('#xview').innerHTML=NOTE?md(NOTE):'<p class="xhint">'+(isAdmin&&DB?'ยังไม่มีคำอธิบาย กด “เพิ่มคำอธิบาย” เพื่อเขียนว่าสองไฟล์ต่างกันอย่างไร':'ผู้ดูแลยังไม่ได้เพิ่มคำอธิบายความแตกต่าง')+'</p>';
+}
+(async()=>{
+  if(!window.claude)isAdmin=true;
+  else{try{const u=await window.claude.use('user');isAdmin=u?await u.canEdit():false}catch(e){}}
+  $('#app').dataset.role=isAdmin?'admin':'viewer';
+  if(!isAdmin)['a','b'].forEach(x=>{
+    const e=$('.pane[data-side='+x+'] .empty');
+    e.querySelector('strong').textContent='ยังไม่มีเอกสาร';
+    e.querySelector('span').textContent='ผู้ดูแลยังไม่ได้อัปโหลดเอกสารฝั่ง '+x.toUpperCase();
+  });
+  let db=null;
+  try{db=await window.claude.use('db')}catch(e){}
+  if(db){
+    DB=db;
+    db.collection('notes').onSnapshot(snap=>{
+      Object.keys(ALLNOTES).forEach(k=>delete ALLNOTES[k]);
+      snap.docs.forEach(x=>{if(x.exists)ALLNOTES[x.id]=String(x.data().text||'')});drawNote();
+    },()=>drawNote());
+    db.collection('docs').onSnapshot(snap=>{
+      Object.keys(ALLDOCS).forEach(k=>delete ALLDOCS[k]);
+      snap.docs.forEach(x=>{if(x.exists)ALLDOCS[x.id]=x.data()});
+      syncSide('a');syncSide('b');drawTabs();
+    },()=>{});
+    if(isAdmin){try{ASSETS=await window.claude.use('assets')}catch(e){}STORE=!!ASSETS}
+  }
+  if(isAdmin&&!STORE){
+    stat('ยังบันทึกให้ทุกคนไม่ได้ ('+(!db?'ฐานข้อมูลของหน้านี้ไม่พร้อมใช้งาน':'ไม่ได้รับสิทธิ์เก็บไฟล์')+') ไฟล์จะถูกเก็บไว้ในเครื่องนี้แทน');
+    if(!db){restoreLocal('a');restoreLocal('b')}
+  }
+  drawNote();
+})();
+$('#xbtn').onclick=()=>{editing=true;$('#xta').value=NOTE;drawNote();$('#xta').focus()};
+$('#xcancel').onclick=()=>{editing=false;$('#xmsg').textContent='';drawNote()};
+$('#xsave').onclick=async()=>{
+  const v=$('#xta').value.trim(),b=$('#xsave');b.disabled=true;$('#xmsg').textContent='';
+  try{
+    const ref=DB.doc('notes/'+nKey(CUR));
+    if(v){await ref.set({text:v,updatedAt:Date.now()});ALLNOTES[nKey(CUR)]=v}else{await ref.delete();delete ALLNOTES[nKey(CUR)]}
+    NOTE=v;editing=false;drawNote();
+  }catch(e){$('#xmsg').textContent='บันทึกไม่สำเร็จ ต้องเป็นผู้ดูแล (Editor หรือเจ้าของหน้า) ลองอีกครั้ง'}
+  finally{b.disabled=false}
+};
+
+
+/* re-fit PDFs when the window width changes */
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>['a','b'].forEach(x=>S[x].kind==='pdf'&&render(x)),250)});
+</script>
+</body>
+</html>
